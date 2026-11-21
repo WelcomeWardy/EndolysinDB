@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}EndolysinDB{% endblock %}</title>
+
+  <!-- Bootstrap 5 -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+    crossorigin="anonymous"
+  />
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+  />
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ===== SIDEBAR ===== -->
+  <nav class="sidebar" id="sidebar">
+
+    <div class="sidebar-brand">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <i class="bi bi-virus2 text-info fs-4"></i>
+        <span class="app-name">EndolysinDB</span>
+      </div>
+      <div class="app-subtitle">Phage Lytic Protein Database</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Navigation</div>
+
+      <a href="{{ url_for('index') }}"
+         class="{{ 'active' if request.endpoint == 'index' else '' }}">
+        <i class="bi bi-grid-1x2"></i> Dashboard
+      </a>
+
+      <a href="{{ url_for('proteins') }}"
+         class="{{ 'active' if request.endpoint in ('proteins', 'protein_detail') else '' }}">
+        <i class="bi bi-bezier2"></i> Proteins
+      </a>
+
+      <a href="{{ url_for('search') }}"
+         class="{{ 'active' if request.endpoint == 'search' else '' }}">
+        <i class="bi bi-search"></i> Search
+      </a>
+
+      <div class="nav-section-title mt-3">System</div>
+
+      <a href="{{ url_for('health') }}" target="_blank">
+        <i class="bi bi-heart-pulse"></i> Health Check
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <small class="text-muted">Phase 1 &mdash; v0.1.0</small>
+    </div>
+  </nav>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="main-content" id="main-content">
+
+    <!-- Top Header -->
+    <header class="top-header">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+      </button>
+
+      <span class="header-title d-none d-md-inline">
+        {% block header_title %}EndolysinDB{% endblock %}
+      </span>
+
+      <div class="header-search ms-auto">
+        <form action="{{ url_for('search') }}" method="get" class="d-flex gap-2">
+          <input
+            type="search"
+            name="q"
+            class="form-control form-control-sm"
+            placeholder="Search proteins, organisms…"
+            value="{{ request.args.get('q', '') }}"
+            aria-label="Search"
+          />
+          <button type="submit" class="btn btn-primary btn-sm px-3">
+            <i class="bi bi-search"></i>
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+
+      {# Flash messages #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      EndolysinDB &mdash; Endolysin and Phage Lytic Protein Activity Database &mdash;
+      Flask + MySQL &mdash; Phase 1
+    </footer>
+
+  </div><!-- /main-content -->
+
+</div><!-- /app-wrapper -->
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Bootstrap JS -->
+<script
+  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmLH8YCGHJaUHgqGMoIdsGh2gJc"
+  crossorigin="anonymous"
+></script>
+
+<!-- Custom JS -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

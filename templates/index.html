@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — EndolysinDB{% endblock %}
+{% block header_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p>Endolysin and Phage Lytic Protein Activity Database — Phase 1</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card stat-primary d-flex justify-content-between align-items-start">
+      <div>
+        <div class="stat-value">{{ stats.proteins }}</div>
+        <div class="stat-label">Proteins</div>
+      </div>
+      <i class="bi bi-bezier2 stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card stat-success d-flex justify-content-between align-items-start">
+      <div>
+        <div class="stat-value">{{ stats.domains }}</div>
+        <div class="stat-label">Domain Records</div>
+      </div>
+      <i class="bi bi-layout-three-columns stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card stat-warning d-flex justify-content-between align-items-start">
+      <div>
+        <div class="stat-value">{{ stats.targets }}</div>
+        <div class="stat-label">Target Organisms</div>
+      </div>
+      <i class="bi bi-bullseye stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card stat-info d-flex justify-content-between align-items-start">
+      <div>
+        <div class="stat-value">{{ stats.activities }}</div>
+        <div class="stat-label">Activity Records</div>
+      </div>
+      <i class="bi bi-activity stat-icon"></i>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- Protein List Card -->
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bezier2 me-2"></i>Proteins in Database</span>
+        <a href="{{ url_for('proteins') }}" class="btn btn-sm btn-outline-primary">
+          View All
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if proteins %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Accession</th>
+                <th>Organism (Phage)</th>
+                <th class="text-end">Length</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in proteins %}
+              <tr>
+                <td class="fw-semibold">{{ p.name }}</td>
+                <td>
+                  <span class="badge-accession">{{ p.accession }}</span>
+                </td>
+                <td>
+                  <span class="badge-organism">{{ p.organism or '—' }}</span>
+                </td>
+                <td class="text-end text-muted">{{ p.length }} aa</td>
+                <td class="text-end">
+                  <a href="{{ url_for('protein_detail', protein_id=p.id) }}"
+                     class="btn btn-xs btn-outline-secondary">
+                    <i class="bi bi-arrow-right"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="bi bi-database-slash fs-3 d-block mb-2"></i>
+          No proteins in database. Run <code>python seed_data.py</code>.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- About / Info Card -->
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>About This Database
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">
+          <strong>EndolysinDB</strong> catalogues endolysins and phage lytic
+          proteins with experimentally verified antibacterial activities.
+        </p>
+        <p class="small text-muted mb-2">
+          Data is sourced from UniProt, InterPro, PDB, and published research
+          papers. All records distinguish experimental evidence from inferred
+          or literature-reported information.
+        </p>
+        <div class="info-unavailable mt-2">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          Domain annotations, activity data, and target organism records are
+          populated from verified sources only. Empty tables indicate data not
+          yet imported &mdash; not absence of activity.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-bookmark me-2"></i>Initial Proteins
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush small">
+          <li class="list-group-item d-flex justify-content-between">
+            <span>LysK</span><code class="text-primary">Q6Y7T6</code>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>LysGH15</span><code class="text-primary">D6QY02</code>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>CP1</span><code class="text-primary">P15057</code>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>PlyC</span><code class="text-primary">Q7Y3F1</code>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Art-35 <small class="text-muted">(gp144)</small></span>
+            <code class="text-primary">Q8SD18</code>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Proteins — EndolysinDB{% endblock %}
+{% block header_title %}Protein Browser{% endblock %}
+
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-start">
+  <div>
+    <h1>Proteins</h1>
+    <p>{{ proteins|length }} protein{{ 's' if proteins|length != 1 }} in database</p>
+  </div>
+</div>
+
+{% if proteins %}
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>FASTA Name</th>
+            <th>Accession</th>
+            <th>Organism (Phage)</th>
+            <th class="text-end">Length (aa)</th>
+            <th>Domains</th>
+            <th>Targets</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in proteins %}
+          <tr>
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td>
+              <a href="{{ url_for('protein_detail', protein_id=p.id) }}"
+                 class="fw-semibold text-decoration-none protein-link">
+                {{ p.name }}
+              </a>
+              {% if p.parent_protein_id %}
+                <span class="badge bg-secondary ms-1 small">engineered</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small font-monospace">{{ p.fasta_name or '—' }}</td>
+            <td>
+              <a href="https://www.uniprot.org/uniprot/{{ p.accession }}"
+                 target="_blank"
+                 class="badge-accession text-decoration-none"
+                 title="View on UniProt">
+                {{ p.accession }}
+                <i class="bi bi-box-arrow-up-right ms-1" style="font-size:0.65rem;"></i>
+              </a>
+            </td>
+            <td>
+              <span class="badge-organism">{{ p.organism or '—' }}</span>
+            </td>
+            <td class="text-end font-monospace">{{ p.length }}</td>
+            <td class="text-center">
+              {% if p.domains %}
+                <span class="badge bg-primary rounded-pill">{{ p.domains|length }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if p.targets %}
+                <span class="badge bg-warning text-dark rounded-pill">{{ p.targets|length }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('protein_detail', protein_id=p.id) }}"
+                 class="btn btn-sm btn-outline-primary">
+                View <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-database-slash fs-2 d-block mb-3"></i>
+    <p>No proteins found. Run <code>python seed_data.py</code> to populate the database.</p>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

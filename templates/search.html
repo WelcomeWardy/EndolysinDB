@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Search — EndolysinDB{% endblock %}
+{% block header_title %}Search{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1>Search</h1>
+  <p>Search proteins by name, accession, organism, or bacterial target</p>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form action="{{ url_for('search') }}" method="get" class="d-flex gap-2">
+      <input
+        type="search"
+        name="q"
+        class="form-control"
+        placeholder="e.g. LysK, Staphylococcus, Q6Y7T6, CHAP…"
+        value="{{ query }}"
+        autofocus
+      />
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-search me-1"></i> Search
+      </button>
+      {% if query %}
+        <a href="{{ url_for('search') }}" class="btn btn-outline-secondary">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- Results -->
+{% if searched %}
+  {% if results %}
+    <div class="mb-3 small text-muted">
+      Found <strong>{{ results|length }}</strong>
+      result{{ 's' if results|length != 1 }} for
+      <strong>&ldquo;{{ query }}&rdquo;</strong>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>FASTA Name</th>
+                <th>Accession</th>
+                <th>Organism</th>
+                <th class="text-end">Length (aa)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in results %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('protein_detail', protein_id=p.id) }}"
+                     class="fw-semibold text-decoration-none protein-link">
+                    {{ p.name }}
+                  </a>
+                </td>
+                <td class="text-muted small font-monospace">{{ p.fasta_name or '—' }}</td>
+                <td>
+                  <span class="badge-accession">{{ p.accession }}</span>
+                </td>
+                <td>
+                  <span class="badge-organism">{{ p.organism or '—' }}</span>
+                </td>
+                <td class="text-end font-monospace">{{ p.length }}</td>
+                <td>
+                  <a href="{{ url_for('protein_detail', protein_id=p.id) }}"
+                     class="btn btn-sm btn-outline-primary">
+                    View <i class="bi bi-arrow-right ms-1"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-search fs-2 text-muted d-block mb-3"></i>
+        <p class="text-muted mb-1">
+          No results found for <strong>&ldquo;{{ query }}&rdquo;</strong>
+        </p>
+        <p class="small text-muted">
+          Try searching by protein name (e.g. LysK), UniProt accession (e.g. Q6Y7T6),
+          or organism (e.g. Staphylococcus).
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
+{% else %}
+  <!-- Search tips shown before any query -->
+  <div class="card">
+    <div class="card-header">
+      <i class="bi bi-lightbulb me-2"></i>Search Tips
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <h6 class="text-primary">By Protein Name</h6>
+          <p class="small text-muted">
+            Enter a protein name: <code>LysK</code>, <code>PlyC</code>,
+            <code>Art-35</code>, <code>CP1</code>, <code>LysGH15</code>
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h6 class="text-primary">By Accession</h6>
+          <p class="small text-muted">
+            Enter a UniProt accession: <code>Q6Y7T6</code>, <code>D6QY02</code>,
+            <code>Q8SD18</code>
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h6 class="text-primary">By Organism</h6>
+          <p class="small text-muted">
+            Enter a host or target organism name:
+            <code>Staphylococcus</code>, <code>Streptococcus</code>,
+            <code>Pseudomonas</code>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

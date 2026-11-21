@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+{% block title %}{{ protein.name }} — EndolysinDB{% endblock %}
+{% block header_title %}{{ protein.name }}{% endblock %}
+
+{% block head %}
+<style>
+  /* Sequence display */
+  .seq-line { display:flex; gap:8px; align-items:baseline; margin-bottom:2px; }
+  .seq-num  { color:#9aacbc; min-width:48px; text-align:right; user-select:none;
+               font-family:'Courier New',monospace; font-size:0.78rem; }
+  .seq-text { font-family:'Courier New',monospace; font-size:0.82rem;
+               color:#1a2a4c; word-break:break-all; letter-spacing:0.5px; }
+  .seq-block { margin-right:3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('proteins') }}">Proteins</a></li>
+    <li class="breadcrumb-item active">{{ protein.name }}</li>
+  </ol>
+</nav>
+
+<!-- ===== PROTEIN HEADER CARD ===== -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row align-items-start">
+      <div class="col-md-8">
+        <h2 class="mb-1">{{ protein.name }}
+          {% if protein.fasta_name and protein.fasta_name != protein.name %}
+            <small class="text-muted fs-5">({{ protein.fasta_name }})</small>
+          {% endif %}
+        </h2>
+
+        <div class="mb-2">
+          <a href="https://www.uniprot.org/uniprot/{{ protein.accession }}"
+             target="_blank"
+             class="badge-accession text-decoration-none me-2">
+            {{ protein.accession }}
+            <i class="bi bi-box-arrow-up-right ms-1" style="font-size:0.65rem;"></i>
+          </a>
+          {% if protein.organism %}
+            <span class="badge-organism">{{ protein.organism }}</span>
+          {% endif %}
+        </div>
+
+        {% if protein.description %}
+          <p class="text-muted mb-1"><em>{{ protein.description }}</em></p>
+        {% endif %}
+
+        {% if protein.fasta_header %}
+          <details class="mt-2">
+            <summary class="small text-muted" style="cursor:pointer;">
+              <i class="bi bi-code-slash me-1"></i>Original FASTA header
+            </summary>
+            <code class="d-block mt-1 small text-secondary p-2 bg-light rounded">
+              &gt;{{ protein.fasta_header }}
+            </code>
+          </details>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+          <span class="badge bg-light text-dark border">
+            <i class="bi bi-rulers me-1"></i>{{ protein.length }} aa
+          </span>
+          <span class="badge bg-light text-dark border">
+            <i class="bi bi-layout-three-columns me-1"></i>{{ domains|length }} domain records
+          </span>
+          <span class="badge bg-light text-dark border">
+            <i class="bi bi-bullseye me-1"></i>{{ targets|length }} target records
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- LEFT COLUMN: Sequence + Domains + Structure -->
+  <div class="col-lg-8">
+
+    <!-- ===== AMINO ACID SEQUENCE ===== -->
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-text-left me-2"></i>Amino Acid Sequence</span>
+        <div class="d-flex gap-2">
+          <span class="text-muted small">{{ protein.length }} residues</span>
+          <button class="btn btn-xs btn-outline-secondary" id="copy-seq-btn"
+                  title="Copy sequence">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-3">
+        <div class="sequence-display" id="sequence-display">
+          {% set seq = protein.sequence %}
+          {% set line_width = 60 %}
+          {% for i in range(0, protein.length, line_width) %}
+            <div class="seq-line">
+              <span class="seq-num">{{ i + 1 }}</span>
+              <span class="seq-text">
+                {%- set chunk = seq[i:i+line_width] -%}
+                {%- for j in range(0, chunk|length, 10) -%}
+                  <span class="seq-block">{{ chunk[j:j+10] }}</span>
+                {%- endfor -%}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+        <!-- Hidden plain sequence for copy button -->
+        <span id="raw-sequence" class="d-none">{{ protein.sequence }}</span>
+      </div>
+    </div>
+
+    <!-- ===== DOMAIN ARCHITECTURE ===== -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-layout-three-columns me-2"></i>Domain Architecture
+      </div>
+      <div class="card-body">
+
+        {% if has_domain_coords %}
+          <!-- SVG diagram — only rendered when real domain coordinates are present -->
+          <div class="domain-svg-container mb-3" id="domain-svg-container">
+            {# JavaScript renders the SVG using the data attribute below #}
+          </div>
+          <div id="domain-data"
+               data-domains="{{ domains | tojson }}"
+               data-length="{{ protein.length }}"
+               style="display:none;"></div>
+        {% elif annotation_image %}
+          <!-- Show annotation image when no coordinate data but image exists -->
+          <div class="mb-2">
+            <div class="info-unavailable mb-3">
+              <i class="bi bi-info-circle me-1"></i>
+              Domain coordinate data not yet imported from InterProScan.
+              Annotation image shown below.
+            </div>
+            <img src="{{ url_for('serve_data', filename=annotation_image) }}"
+                 alt="Domain annotation for {{ protein.name }}"
+                 class="protein-img"
+                 style="max-height:300px; object-fit:contain;" />
+          </div>
+        {% else %}
+          <div class="info-unavailable">
+            <i class="bi bi-info-circle me-1"></i>
+            Domain annotation data not yet available.
+            Will be populated from InterProScan output.
+          </div>
+        {% endif %}
+
+        {% if domains %}
+          <div class="table-responsive mt-3">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th>Type</th>
+                  <th>InterPro ID</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in domains %}
+                <tr>
+                  <td class="fw-semibold">{{ d.domain_name }}</td>
+                  <td><span class="badge bg-secondary">{{ d.domain_type or '—' }}</span></td>
+                  <td>
+                    {% if d.interpro_id %}
+                      <a href="https://www.ebi.ac.uk/interpro/entry/{{ d.interpro_id }}"
+                         target="_blank" class="text-decoration-none font-monospace small">
+                        {{ d.interpro_id }}
+                      </a>
+                    {% else %}—{% endif %}
+                  </td>
+                  <td class="font-monospace">{{ d.start_pos or '—' }}</td>
+                  <td class="font-monospace">{{ d.end_pos or '—' }}</td>
+                  <td class="text-muted small">{{ d.source or '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- ===== STRUCTURE ===== -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-box me-2"></i>3D Structure
+      </div>
+      <div class="card-body">
+        {% if structures %}
+          {% for s in structures %}
+            <div class="mb-3">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                {% if s.pdb_id %}
+                  <a href="https://www.rcsb.org/structure/{{ s.pdb_id }}"
+                     target="_blank"
+                     class="badge-accession text-decoration-none">
+                    PDB: {{ s.pdb_id }}
+                    <i class="bi bi-box-arrow-up-right ms-1" style="font-size:0.65rem;"></i>
+                  </a>
+                {% else %}
+                  <span class="badge bg-warning text-dark">No PDB ID assigned</span>
+                {% endif %}
+                {% if s.source %}
+                  <span class="badge bg-light text-dark border">{{ s.source }}</span>
+                {% endif %}
+              </div>
+
+              {% if s.structure_image_path %}
+                <img src="{{ url_for('serve_data', filename=s.structure_image_path) }}"
+                     alt="Structure of {{ protein.name }}"
+                     class="protein-img"
+                     style="max-height:320px; object-fit:contain;" />
+              {% endif %}
+
+              {% if s.notes %}
+                <p class="small text-muted mt-2 mb-0">
+                  <i class="bi bi-info-circle me-1"></i>{{ s.notes }}
+                </p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="info-unavailable">
+            <i class="bi bi-info-circle me-1"></i>
+            No structure record available. PDB ID and coordinate file not yet assigned.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /col-lg-8 -->
+
+  <!-- RIGHT COLUMN: Targets + Activities + Engineering -->
+  <div class="col-lg-4">
+
+    <!-- ===== TARGET ORGANISMS ===== -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-bullseye me-2"></i>Target Organisms
+      </div>
+      <div class="card-body p-0">
+        {% if targets %}
+          {% for t in targets %}
+            <div class="p-3 border-bottom">
+              <div class="fw-semibold">{{ t.organism_name }}</div>
+              {% if t.strain %}
+                <div class="text-muted small">{{ t.strain }}</div>
+              {% endif %}
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                {% if t.activity_type %}
+                  <span class="badge bg-primary small">{{ t.activity_type }}</span>
+                {% endif %}
+                {% if t.evidence_type %}
+                  <span class="evidence-{{ t.evidence_type }}">{{ t.evidence_type }}</span>
+                {% endif %}
+              </div>
+              {% if t.mic_value %}
+                <div class="small mt-1">MIC: <strong>{{ t.mic_value }}</strong></div>
+              {% endif %}
+              {% if t.assay_method %}
+                <div class="small text-muted">Method: {{ t.assay_method }}</div>
+              {% endif %}
+              {% if t.reference_doi %}
+                <div class="small mt-1">
+                  <a href="https://doi.org/{{ t.reference_doi }}"
+                     target="_blank" class="text-decoration-none">
+                    <i class="bi bi-journal me-1"></i>{{ t.reference_doi }}
+                  </a>
+                </div>
+              {% elif t.reference_note %}
+                <div class="small text-muted">{{ t.reference_note }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="p-3">
+            <div class="info-unavailable small">
+              <i class="bi bi-info-circle me-1"></i>
+              No target organism records yet. To be populated from
+              published literature with evidence type.
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== ACTIVITY CONDITIONS ===== -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-activity me-2"></i>Activity Conditions
+      </div>
+      <div class="card-body p-0">
+        {% if activities %}
+          {% for a in activities %}
+            <div class="p-3 border-bottom">
+              <div class="fw-semibold">{{ a.activity_type or 'Activity' }}</div>
+              <div class="row g-1 small mt-1">
+                {% if a.ph is not none %}
+                  <div class="col-6 text-muted">pH: <strong>{{ a.ph }}</strong></div>
+                {% endif %}
+                {% if a.temperature is not none %}
+                  <div class="col-6 text-muted">Temp: <strong>{{ a.temperature }}°C</strong></div>
+                {% endif %}
+                {% if a.salt_conc %}
+                  <div class="col-12 text-muted">Salt: <strong>{{ a.salt_conc }}</strong></div>
+                {% endif %}
+              </div>
+              {% if a.assay_method %}
+                <div class="small text-muted mt-1">{{ a.assay_method }}</div>
+              {% endif %}
+              {% if a.evidence_type %}
+                <span class="evidence-{{ a.evidence_type }} mt-1 d-inline-block">
+                  {{ a.evidence_type }}
+                </span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="p-3">
+            <div class="info-unavailable small">
+              <i class="bi bi-info-circle me-1"></i>
+              No activity condition records yet.
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== ENGINEERED VARIANTS ===== -->
+    {% if engineering %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-tools me-2"></i>Engineered Variants
+      </div>
+      <div class="card-body p-0">
+        {% for e in engineering %}
+          <div class="p-3 border-bottom">
+            <div class="fw-semibold">{{ e.engineered_name }}</div>
+            {% if e.mutation_info %}
+              <div class="small text-muted">{{ e.mutation_info }}</div>
+            {% endif %}
+            {% if e.chimera_composition %}
+              <div class="small text-muted">Chimera: {{ e.chimera_composition }}</div>
+            {% endif %}
+            {% if e.modified_host_range %}
+              <div class="small mt-1">
+                Modified host range: <em>{{ e.modified_host_range }}</em>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /col-lg-4 -->
+
+</div><!-- /row -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===== COPY SEQUENCE BUTTON =====
+document.getElementById('copy-seq-btn')?.addEventListener('click', function () {
+  const seq = document.getElementById('raw-sequence').textContent.trim();
+  navigator.clipboard.writeText(seq).then(() => {
+    this.innerHTML = '<i class="bi bi-clipboard-check"></i>';
+    this.classList.replace('btn-outline-secondary', 'btn-success');
+    setTimeout(() => {
+      this.innerHTML = '<i class="bi bi-clipboard"></i>';
+      this.classList.replace('btn-success', 'btn-outline-secondary');
+    }, 2000);
+  });
+});
+
+// ===== DOMAIN SVG RENDERING =====
+// Only runs when has_domain_coords is True (data element present and non-empty)
+(function () {
+  const dataEl = document.getElementById('domain-data');
+  const container = document.getElementById('domain-svg-container');
+  if (!dataEl || !container) return;
+
+  let domains;
+  try {
+    domains = JSON.parse(dataEl.dataset.domains);
+  } catch (e) { return; }
+
+  // Filter to only domains with real coordinates
+  const coordDomains = domains.filter(d => d.start_pos != null && d.end_pos != null);
+  if (!coordDomains.length) return;
+
+  const proteinLength = parseInt(dataEl.dataset.length, 10);
+  renderDomainSVG(container, coordDomains, proteinLength);
+})();
+
+function renderDomainSVG(container, domains, proteinLength) {
+  const W = container.clientWidth || 700;
+  const H = 110;
+  const margin = { left: 55, right: 25 };
+  const drawW = W - margin.left - margin.right;
+  const barY = 30, barH = 32;
+  const scale = drawW / proteinLength;
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Domain architecture diagram');
+
+  // Protein backbone
+  const backbone = document.createElementNS(SVG_NS, 'rect');
+  backbone.setAttribute('x', margin.left);
+  backbone.setAttribute('y', barY + barH / 2 - 3);
+  backbone.setAttribute('width', drawW);
+  backbone.setAttribute('height', 6);
+  backbone.setAttribute('fill', '#c8d0da');
+  backbone.setAttribute('rx', 3);
+  svg.appendChild(backbone);
+
+  // N and C terminus labels
+  ['N', 'C'].forEach((label, i) => {
+    const x = i === 0 ? margin.left - 8 : margin.left + drawW + 8;
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', barY + barH / 2 + 5);
+    t.setAttribute('text-anchor', i === 0 ? 'end' : 'start');
+    t.setAttribute('font-size', '11');
+    t.setAttribute('font-weight', 'bold');
+    t.setAttribute('fill', '#6c7e94');
+    t.setAttribute('font-family', 'sans-serif');
+    t.textContent = label;
+    svg.appendChild(t);
+  });
+
+  // Domain color palette by keyword match
+  const COLORS = [
+    ['CHAP',    '#e74c3c'],
+    ['Amidase', '#2ecc71'],
+    ['CBD',     '#3498db'],
+    ['LysM',    '#f39c12'],
+    ['SH3',     '#9b59b6'],
+    ['PGRP',    '#1abc9c'],
+    ['Muramidase','#e67e22'],
+  ];
+  const DEFAULT_COLOR = '#7f8c8d';
+
+  function domainColor(d) {
+    const name = (d.domain_name || '') + (d.domain_type || '');
+    for (const [key, color] of COLORS) {
+      if (name.toLowerCase().includes(key.toLowerCase())) return color;
+    }
+    return DEFAULT_COLOR;
+  }
+
+  // Draw domains
+  domains.forEach(d => {
+    const x = margin.left + (d.start_pos - 1) * scale;
+    const w = Math.max((d.end_pos - d.start_pos + 1) * scale, 18);
+    const color = domainColor(d);
+
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', barY);
+    rect.setAttribute('width', w);
+    rect.setAttribute('height', barH);
+    rect.setAttribute('fill', color);
+    rect.setAttribute('rx', 5);
+    rect.setAttribute('opacity', '0.9');
+
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent = `${d.domain_name}  ${d.start_pos}–${d.end_pos}`;
+    rect.appendChild(title);
+    svg.appendChild(rect);
+
+    if (w > 28) {
+      const label = document.createElementNS(SVG_NS, 'text');
+      label.setAttribute('x', x + w / 2);
+      label.setAttribute('y', barY + barH / 2 + 4);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('font-weight', 'bold');
+      label.setAttribute('fill', '#fff');
+      label.setAttribute('font-family', 'sans-serif');
+      const short = d.domain_name.length > 10
+        ? d.domain_name.substring(0, 10) : d.domain_name;
+      label.textContent = short;
+      svg.appendChild(label);
+    }
+  });
+
+  // Position tick labels: start, middle, end
+  [1, Math.round(proteinLength / 2), proteinLength].forEach(pos => {
+    const x = margin.left + (pos - 1) * scale;
+    const tick = document.createElementNS(SVG_NS, 'line');
+    tick.setAttribute('x1', x); tick.setAttribute('y1', barY + barH);
+    tick.setAttribute('x2', x); tick.setAttribute('y2', barY + barH + 5);
+    tick.setAttribute('stroke', '#c8d0da'); tick.setAttribute('stroke-width', '1');
+    svg.appendChild(tick);
+
+    const lbl = document.createElementNS(SVG_NS, 'text');
+    lbl.setAttribute('x', x);
+    lbl.setAttribute('y', barY + barH + 16);
+    lbl.setAttribute('text-anchor', 'middle');
+    lbl.setAttribute('font-size', '9');
+    lbl.setAttribute('fill', '#9aacbc');
+    lbl.setAttribute('font-family', 'sans-serif');
+    lbl.textContent = pos;
+    svg.appendChild(lbl);
+  });
+
+  container.appendChild(svg);
+}
+</script>
+{% endblock %}
